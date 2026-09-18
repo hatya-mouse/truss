@@ -4,7 +4,7 @@ mod style;
 
 pub use item::Item;
 pub use list::{List, RenderArea};
-pub use style::RichText;
+pub use style::{ItemStyle, RichText};
 
 use crate::item::LabelItem;
 

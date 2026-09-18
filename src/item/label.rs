@@ -1,19 +1,19 @@
-use crate::{Item, RenderArea, RichText};
+use crate::{Item, ItemStyle, RenderArea};
 
 pub struct LabelItem {
-    text: RichText,
+    text: String,
 }
 
 impl LabelItem {
-    pub fn new(text: impl Into<RichText>) -> Self {
+    pub fn new(text: impl Into<String>) -> Self {
         Self { text: text.into() }
     }
 }
 
 impl Item for LabelItem {
-    fn render(&self, render_area: &mut RenderArea) {
-        println!("{}", self.text);
-        render_area.advance_by(self.text.lines().try_into().unwrap_or_default());
+    fn render(&self, render_area: &mut RenderArea, item_style: ItemStyle) {
+        println!("{}", item_style.apply(&self.text));
+        render_area.advance_by(self.text.lines().count().try_into().unwrap_or_default());
     }
 
     fn handle_key(&mut self) -> bool {

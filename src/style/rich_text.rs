@@ -1,7 +1,7 @@
 use crossterm::style::{ContentStyle, StyledContent};
 use std::fmt::Display;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct RichText(Vec<StyledContent<String>>);
 
 impl RichText {
@@ -12,14 +12,14 @@ impl RichText {
     }
 
     /// Returns a RichText with the given styled content joined at the end.
-    pub fn join(mut self, styled_content: impl Into<StyledContent<String>>) -> Self {
+    pub fn join(mut self, styled_content: impl Into<RichText>) -> Self {
         self.push(styled_content);
         self
     }
 
     /// Appends the given styled content to the end of the RichText.
-    pub fn push(&mut self, styled_content: impl Into<StyledContent<String>>) {
-        self.0.push(styled_content.into());
+    pub fn push(&mut self, styled_content: impl Into<RichText>) {
+        self.0.extend(styled_content.into().0);
     }
 
     /// Returns the number of lines in the RichText.
@@ -52,5 +52,20 @@ impl Into<RichText> for &str {
 impl Into<RichText> for String {
     fn into(self) -> RichText {
         RichText(vec![StyledContent::new(ContentStyle::default(), self)])
+    }
+}
+
+impl Into<RichText> for StyledContent<&str> {
+    fn into(self) -> RichText {
+        RichText(vec![StyledContent::new(
+            *self.style(),
+            self.content().to_string(),
+        )])
+    }
+}
+
+impl Into<RichText> for StyledContent<String> {
+    fn into(self) -> RichText {
+        RichText(vec![self])
     }
 }

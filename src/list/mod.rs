@@ -1,28 +1,47 @@
 mod raw_guard;
 mod render_area;
 
-use std::io::stdout;
-
 pub use render_area::RenderArea;
 
-use crate::{Item, list::raw_guard::RawGuard};
+use crate::{Item, ItemStyle, list::raw_guard::RawGuard};
 use crossterm::{
     cursor::MoveToColumn,
     event::{Event, KeyCode, KeyEvent},
     execute,
 };
+use std::io::stdout;
 
 /// A list of items that can be displayed in the terminal.
-#[derive(Default)]
 pub struct List {
     /// Items in the list.
     items: Vec<Box<dyn Item>>,
+
+    // --- STYLES ---
+    /// The style for the selected items.
+    selected_style: ItemStyle,
+    /// The style for the normal items.
+    item_style: ItemStyle,
+
+    // --- STATES ---
     /// The currently rendered area on the terminal.
     render_area: RenderArea,
     /// The index of the currently selected item.
     selected_index: usize,
     /// Whether it's currently input mode.
     input_mode: bool,
+}
+
+impl Default for List {
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            selected_style: ItemStyle::default_selected(),
+            item_style: ItemStyle::default_item(),
+            render_area: RenderArea::default(),
+            selected_index: 0,
+            input_mode: false,
+        }
+    }
 }
 
 impl List {
@@ -62,12 +81,21 @@ impl List {
         self.clear()?;
 
         for (index, item) in self.items.iter().enumerate() {
-            let item_style = self.resolve_style(item);
-            item.render(item_style, &mut self.render_area);
+            let item_style = self.resolve_style(index).clone();
+            item.render(&mut self.render_area, item_style);
             execute!(stdout(), MoveToColumn(0))?;
         }
 
         Ok(())
+    }
+
+    /// Returns the item style for the given item index.
+    pub fn resolve_style(&self, item_index: usize) -> &ItemStyle {
+        if self.selected_index == item_index {
+            &self.selected_style
+        } else {
+            &self.item_style
+        }
     }
 
     /// Handles the keyboard input.
