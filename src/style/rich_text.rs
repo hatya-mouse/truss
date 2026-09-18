@@ -21,6 +21,14 @@ impl RichText {
     pub fn push(&mut self, styled_content: impl Into<StyledContent<String>>) {
         self.0.push(styled_content.into());
     }
+
+    /// Returns the number of lines in the RichText.
+    pub fn lines(&self) -> usize {
+        self.0
+            .iter()
+            .map(|styled_content| styled_content.content().lines().count())
+            .sum()
+    }
 }
 
 impl Display for RichText {
@@ -29,5 +37,20 @@ impl Display for RichText {
             write!(f, "{}", styled_content)?;
         }
         Ok(())
+    }
+}
+
+impl Into<RichText> for &str {
+    fn into(self) -> RichText {
+        RichText(vec![StyledContent::new(
+            ContentStyle::default(),
+            self.to_string(),
+        )])
+    }
+}
+
+impl Into<RichText> for String {
+    fn into(self) -> RichText {
+        RichText(vec![StyledContent::new(ContentStyle::default(), self)])
     }
 }

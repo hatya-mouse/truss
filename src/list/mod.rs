@@ -1,10 +1,16 @@
 mod raw_guard;
 mod render_area;
 
+use std::io::stdout;
+
 pub use render_area::RenderArea;
 
 use crate::{Item, list::raw_guard::RawGuard};
-use crossterm::event::{Event, KeyCode, KeyEvent};
+use crossterm::{
+    cursor::MoveToColumn,
+    event::{Event, KeyCode, KeyEvent},
+    execute,
+};
 
 /// A list of items that can be displayed in the terminal.
 #[derive(Default)]
@@ -21,25 +27,25 @@ pub struct List {
 
 impl List {
     /// Adds an item to the list.
-    pub fn add_item(mut self, item: Box<dyn Item>) -> Self {
-        self.items.push(item);
+    pub fn add_item<T>(mut self, item: T) -> Self
+    where
+        T: Item + 'static,
+    {
+        self.items.push(Box::new(item));
         self
     }
 
     /// Shows the list.
     pub fn show(mut self) -> std::io::Result<()> {
         let raw_mode = RawGuard::new()?;
+        self.render_area.reset();
         self.render()?;
 
         loop {
-            match crossterm::event::read()? {
-                Event::Key(event) => {
-                    if self.handle_key(event) {
-                        break;
-                    }
-                }
-                Event::Mouse(event) => {}
-                _ => (),
+            if let Event::Key(event) = crossterm::event::read()?
+                && self.handle_key(event)
+            {
+                break;
             }
 
             self.render()?;
@@ -55,8 +61,10 @@ impl List {
     fn render(&mut self) -> std::io::Result<()> {
         self.clear()?;
 
-        for item in &self.items {
-            item.render(&mut self.render_area);
+        for (index, item) in self.items.iter().enumerate() {
+            let item_style = self.resolve_style(item);
+            item.render(item_style, &mut self.render_area);
+            execute!(stdout(), MoveToColumn(0))?;
         }
 
         Ok(())
