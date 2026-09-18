@@ -49,7 +49,7 @@ pub struct List<'a> {
     /// The currently rendered area on the terminal.
     render_area: RenderArea,
     /// The index of the currently selected item.
-    selected_index: usize,
+    selected_index: Option<usize>,
 }
 
 impl Default for List<'_> {
@@ -61,7 +61,7 @@ impl Default for List<'_> {
             clear_on_close: true,
             key_binds: ListKeyBinds::default(),
             render_area: RenderArea::default(),
-            selected_index: 0,
+            selected_index: Some(0),
         }
     }
 }
@@ -103,8 +103,11 @@ impl<'a> List<'a> {
             self.render()?;
         }
 
+        self.selected_index = None;
         if self.clear_on_close {
             self.clear()?;
+        } else {
+            self.render()?;
         }
         drop(raw_mode);
 
@@ -126,7 +129,7 @@ impl<'a> List<'a> {
 
     /// Returns the item style for the given item index.
     pub fn resolve_style(&self, item_index: usize) -> &ItemStyle {
-        if self.selected_index == item_index {
+        if self.selected_index == Some(item_index) {
             &self.selected_style
         } else {
             &self.item_style
@@ -143,22 +146,27 @@ impl<'a> List<'a> {
 
         for key_code in self.key_binds.up.iter() {
             if event.code == *key_code {
-                self.selected_index = self.selected_index.saturating_sub(1);
+                self.selected_index =
+                    Some(self.selected_index.unwrap_or_default().saturating_sub(1));
                 return false;
             }
         }
 
         for key_code in self.key_binds.down.iter() {
             if event.code == *key_code {
-                self.selected_index = self
-                    .selected_index
-                    .saturating_add(1)
-                    .min(self.items.len() - 1);
+                self.selected_index = Some(
+                    self.selected_index
+                        .unwrap_or_default()
+                        .saturating_add(1)
+                        .min(self.items.len() - 1),
+                );
                 return false;
             }
         }
 
-        if let Some(item) = self.items.get_mut(self.selected_index) {
+        if let Some(selected_index) = self.selected_index
+            && let Some(item) = self.items.get_mut(selected_index)
+        {
             item.handle_key(event)
         } else {
             false
