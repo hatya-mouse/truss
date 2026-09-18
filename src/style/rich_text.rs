@@ -40,32 +40,32 @@ impl Display for RichText {
     }
 }
 
-impl Into<RichText> for &str {
-    fn into(self) -> RichText {
+impl From<&str> for RichText {
+    fn from(s: &str) -> Self {
         RichText(vec![StyledContent::new(
             ContentStyle::default(),
-            self.to_string(),
+            s.to_string(),
         )])
     }
 }
 
-impl Into<RichText> for String {
-    fn into(self) -> RichText {
-        RichText(vec![StyledContent::new(ContentStyle::default(), self)])
+impl From<String> for RichText {
+    fn from(s: String) -> Self {
+        RichText(vec![StyledContent::new(ContentStyle::default(), s)])
     }
 }
 
-impl Into<RichText> for StyledContent<&str> {
-    fn into(self) -> RichText {
+impl From<StyledContent<&str>> for RichText {
+    fn from(styled_content: StyledContent<&str>) -> Self {
         RichText(vec![StyledContent::new(
-            *self.style(),
-            self.content().to_string(),
+            *styled_content.style(),
+            styled_content.content().to_string(),
         )])
     }
 }
 
-impl Into<RichText> for StyledContent<String> {
-    fn into(self) -> RichText {
-        RichText(vec![self])
+impl From<StyledContent<String>> for RichText {
+    fn from(styled_content: StyledContent<String>) -> Self {
+        RichText(vec![styled_content])
     }
 }

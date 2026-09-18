@@ -27,8 +27,6 @@ pub struct List {
     render_area: RenderArea,
     /// The index of the currently selected item.
     selected_index: usize,
-    /// Whether it's currently input mode.
-    input_mode: bool,
 }
 
 impl Default for List {
@@ -39,7 +37,6 @@ impl Default for List {
             item_style: ItemStyle::default_item(),
             render_area: RenderArea::default(),
             selected_index: 0,
-            input_mode: false,
         }
     }
 }
@@ -104,23 +101,23 @@ impl List {
         match &event.code {
             KeyCode::Up | KeyCode::PageUp => {
                 self.selected_index = self.selected_index.saturating_sub(1);
+                false
             }
             KeyCode::Down | KeyCode::PageDown => {
                 self.selected_index = self
                     .selected_index
                     .saturating_add(1)
                     .min(self.items.len() - 1);
+                false
             }
-            KeyCode::Enter => {
-                self.input_mode = true;
+            _ => {
+                if let Some(item) = self.items.get_mut(self.selected_index) {
+                    item.handle_key(event)
+                } else {
+                    false
+                }
             }
-            KeyCode::Esc => {
-                self.input_mode = false;
-            }
-            _ => (),
         }
-
-        false
     }
 
     /// Clears the list.

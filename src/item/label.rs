@@ -1,4 +1,5 @@
 use crate::{Item, ItemStyle, RenderArea};
+use crossterm::event::KeyEvent;
 
 pub struct LabelItem {
     text: String,
@@ -16,7 +17,7 @@ impl Item for LabelItem {
         render_area.advance_by(self.text.lines().count().try_into().unwrap_or_default());
     }
 
-    fn handle_key(&mut self) -> bool {
+    fn handle_key(&mut self, _event: KeyEvent) -> bool {
         false
     }
 }
