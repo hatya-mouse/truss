@@ -1,6 +1,7 @@
-use crossterm::event::{Event, KeyEvent};
+mod raw_guard;
 
-use crate::Item;
+use crate::{Item, list::raw_guard::RawGuard};
+use crossterm::event::{Event, KeyEvent};
 
 #[derive(Default)]
 pub struct List {
@@ -16,25 +17,23 @@ impl List {
 
     /// Shows the list.
     pub fn show(mut self) -> std::io::Result<()> {
-        crossterm::terminal::enable_raw_mode()?;
+        let raw_mode = RawGuard::new()?;
         self.render();
 
         loop {
             match crossterm::event::read()? {
-                Event::Key(event) => {}
+                Event::Key(event) => {
+                    if self.handle_key(event) {
+                        break;
+                    }
+                }
                 Event::Mouse(event) => {}
                 _ => (),
-            }
-
-            let should_close = self.items.iter_mut().any(|item| item.process());
-
-            if should_close {
-                break;
             }
         }
 
         self.clear();
-        crossterm::terminal::disable_raw_mode()?;
+        drop(raw_mode);
 
         Ok(())
     }
@@ -48,7 +47,9 @@ impl List {
 
     /// Handles the keyboard input.
     /// Returns `true` if the list should be closed.
-    fn handle_key(&mut self, event: KeyEvent) {}
+    fn handle_key(&mut self, event: KeyEvent) -> bool {
+        false
+    }
 
     /// Clears the list.
     fn clear(&self) {}
