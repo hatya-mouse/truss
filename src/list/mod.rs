@@ -1,3 +1,4 @@
+mod chain;
 mod raw_guard;
 mod render_area;
 
@@ -11,6 +12,22 @@ use crossterm::{
 };
 use std::io::stdout;
 
+pub struct ListKeyBinds {
+    /// Press any of these keys to move the selection up.
+    up: Vec<KeyCode>,
+    /// Press any of these keys to move the selection down.
+    down: Vec<KeyCode>,
+}
+
+impl Default for ListKeyBinds {
+    fn default() -> Self {
+        Self {
+            up: vec![KeyCode::Up, KeyCode::PageUp],
+            down: vec![KeyCode::Down, KeyCode::PageDown],
+        }
+    }
+}
+
 /// A list of items that can be displayed in the terminal.
 pub struct List<'a> {
     /// Items in the list.
@@ -21,6 +38,10 @@ pub struct List<'a> {
     selected_style: ItemStyle,
     /// The style for the normal items.
     item_style: ItemStyle,
+
+    // --- KEY BINDS ---
+    /// The key bindings for the list.
+    key_binds: ListKeyBinds,
 
     // --- STATES ---
     /// The currently rendered area on the terminal.
@@ -35,6 +56,7 @@ impl Default for List<'_> {
             items: Vec::new(),
             selected_style: ItemStyle::default_selected(),
             item_style: ItemStyle::default_item(),
+            key_binds: ListKeyBinds::default(),
             render_area: RenderArea::default(),
             selected_index: 0,
         }
@@ -48,6 +70,17 @@ impl<'a> List<'a> {
         T: Item + 'a,
     {
         self.items.push(Box::new(item));
+        self
+    }
+
+    /// Adds multiple items to the list.
+    pub fn add_items<T>(mut self, items: Vec<T>) -> Self
+    where
+        T: Item + 'a,
+    {
+        for item in items {
+            self = self.add_item(item);
+        }
         self
     }
 
@@ -98,25 +131,27 @@ impl<'a> List<'a> {
     /// Handles the keyboard input.
     /// Returns `true` if the list should be closed.
     fn handle_key(&mut self, event: KeyEvent) -> bool {
-        match &event.code {
-            KeyCode::Up | KeyCode::PageUp => {
+        for key_code in self.key_binds.up.iter() {
+            if event.code == *key_code {
                 self.selected_index = self.selected_index.saturating_sub(1);
-                false
+                return false;
             }
-            KeyCode::Down | KeyCode::PageDown => {
+        }
+
+        for key_code in self.key_binds.down.iter() {
+            if event.code == *key_code {
                 self.selected_index = self
                     .selected_index
                     .saturating_add(1)
                     .min(self.items.len() - 1);
-                false
+                return false;
             }
-            _ => {
-                if let Some(item) = self.items.get_mut(self.selected_index) {
-                    item.handle_key(event)
-                } else {
-                    false
-                }
-            }
+        }
+
+        if let Some(item) = self.items.get_mut(self.selected_index) {
+            item.handle_key(event)
+        } else {
+            false
         }
     }
 

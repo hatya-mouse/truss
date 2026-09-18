@@ -5,14 +5,14 @@ use crossterm::{
 };
 
 pub struct CheckItem<'a> {
-    name: String,
+    label: String,
     checked: &'a mut bool,
 }
 
 impl<'a> CheckItem<'a> {
-    pub fn new(name: impl Into<String>, checked: &'a mut bool) -> Self {
+    pub fn new(label: impl Into<String>, checked: &'a mut bool) -> Self {
         Self {
-            name: name.into(),
+            label: label.into(),
             checked,
         }
     }
@@ -25,8 +25,8 @@ impl Item for CheckItem<'_> {
         } else {
             "".reset()
         };
-        println!("{}", item_style.apply(&self.name).join(checkmark));
-        render_area.advance_by(self.name.lines().count().try_into().unwrap_or_default());
+        println!("{}", item_style.apply(&self.label).join(checkmark));
+        render_area.advance_by(self.label.lines().count().try_into().unwrap_or_default());
     }
 
     fn handle_key(&mut self, event: KeyEvent) -> bool {
