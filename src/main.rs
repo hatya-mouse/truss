@@ -13,6 +13,7 @@ fn main() {
         .label("second")
         .label("third")
         .check("check", &mut flag)
+        .clear_on_close(false)
         .show()
         .expect("An error occured");
 }

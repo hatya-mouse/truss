@@ -28,6 +28,12 @@ impl<'a> List<'a> {
         }
     }
 
+    /// Sets whether the list should be cleared after it is closed.
+    pub fn clear_on_close(mut self, should_clear: bool) -> Self {
+        self.clear_on_close = should_clear;
+        self
+    }
+
     // --- ITEM ADDITION ---
 
     /// Adds an label item to the list.

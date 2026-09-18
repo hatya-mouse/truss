@@ -7,7 +7,7 @@ pub use render_area::RenderArea;
 use crate::{Item, ItemStyle, list::raw_guard::RawGuard};
 use crossterm::{
     cursor::MoveToColumn,
-    event::{Event, KeyCode, KeyEvent},
+    event::{Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
 };
 use std::io::stdout;
@@ -38,6 +38,8 @@ pub struct List<'a> {
     selected_style: ItemStyle,
     /// The style for the normal items.
     item_style: ItemStyle,
+    /// Whether the list should be cleared after it is closed.
+    clear_on_close: bool,
 
     // --- KEY BINDS ---
     /// The key bindings for the list.
@@ -56,6 +58,7 @@ impl Default for List<'_> {
             items: Vec::new(),
             selected_style: ItemStyle::default_selected(),
             item_style: ItemStyle::default_item(),
+            clear_on_close: true,
             key_binds: ListKeyBinds::default(),
             render_area: RenderArea::default(),
             selected_index: 0,
@@ -100,7 +103,9 @@ impl<'a> List<'a> {
             self.render()?;
         }
 
-        self.clear()?;
+        if self.clear_on_close {
+            self.clear()?;
+        }
         drop(raw_mode);
 
         Ok(())
@@ -131,6 +136,11 @@ impl<'a> List<'a> {
     /// Handles the keyboard input.
     /// Returns `true` if the list should be closed.
     fn handle_key(&mut self, event: KeyEvent) -> bool {
+        // Handle Ctrl+C to close the list
+        if event.modifiers.contains(KeyModifiers::CONTROL) && event.code == KeyCode::Char('c') {
+            return true;
+        }
+
         for key_code in self.key_binds.up.iter() {
             if event.code == *key_code {
                 self.selected_index = self.selected_index.saturating_sub(1);
