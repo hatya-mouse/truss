@@ -12,9 +12,9 @@ use crossterm::{
 use std::io::stdout;
 
 /// A list of items that can be displayed in the terminal.
-pub struct List {
+pub struct List<'a> {
     /// Items in the list.
-    items: Vec<Box<dyn Item>>,
+    items: Vec<Box<dyn Item + 'a>>,
 
     // --- STYLES ---
     /// The style for the selected items.
@@ -29,7 +29,7 @@ pub struct List {
     selected_index: usize,
 }
 
-impl Default for List {
+impl Default for List<'_> {
     fn default() -> Self {
         Self {
             items: Vec::new(),
@@ -41,11 +41,11 @@ impl Default for List {
     }
 }
 
-impl List {
+impl<'a> List<'a> {
     /// Adds an item to the list.
     pub fn add_item<T>(mut self, item: T) -> Self
     where
-        T: Item + 'static,
+        T: Item + 'a,
     {
         self.items.push(Box::new(item));
         self
