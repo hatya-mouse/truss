@@ -2,7 +2,7 @@ use crate::RichText;
 use crossterm::style::{Attribute, ContentStyle, StyledContent, Stylize};
 
 /// The style of the item in the list.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ItemStyle {
     /// The prefix text of the item.
     pub prefix: RichText,

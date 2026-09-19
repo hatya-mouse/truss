@@ -1,6 +1,10 @@
 use crate::{Item, ItemStyle, RenderArea, text_editor::TextEditor};
-use crossterm::event::{KeyCode, KeyEvent};
-use std::fmt::Display;
+use crossterm::{
+    cursor::MoveToColumn,
+    event::{KeyCode, KeyEvent},
+    execute,
+};
+use std::{fmt::Display, io::stdout};
 
 pub type FieldValidator<T> = Box<dyn Fn(&str) -> Result<T, String>>;
 
@@ -23,8 +27,7 @@ pub struct FieldItem<'a, T: Display> {
     /// The item style for the validator error.
     /// If None, the default item style of the list is used.
     error_style: Option<ItemStyle>,
-    /// Whether to use the mode-based editing or not. If false, the editor will accept key input and insert it to the text immediately.
-    /// This cannot work with multi-line editing, so it is disabled when multi-line editing is enabled.
+    /// Whether to use the mode-based editing or not.
     enable_edit_mode: bool,
 }
 
@@ -51,14 +54,17 @@ impl<T: Display> Item for FieldItem<'_, T> {
         _is_selected: bool,
     ) -> std::io::Result<()> {
         if let Some(validator_error) = self.validator_error.as_ref() {
-            let error_style = self.error_style.as_ref().unwrap_or(&item_style);
+            let default_style = ItemStyle::default();
+            let error_style = self.error_style.as_ref().unwrap_or(&default_style);
             let error_text = error_style.apply(validator_error);
             println!("{}", error_text);
             render_area.advance_by(error_text.lines().try_into().unwrap_or_default());
+
+            execute!(stdout(), MoveToColumn(0))?;
         }
 
         let label_text = item_style.apply(&self.label);
-        print!("{}", label_text);
+        print!("{} ", label_text);
         let label_lines: u16 = label_text.lines().try_into().unwrap_or_default();
         render_area.advance_by(label_lines.saturating_sub(1));
 
@@ -79,13 +85,14 @@ impl<T: Display> Item for FieldItem<'_, T> {
         if !event_handled {
             match event.code {
                 KeyCode::Enter => {
-                    if self.enable_edit_mode && !self.editor.edit_mode() {
+                    if (self.editor.multiline || self.enable_edit_mode) && !self.editor.edit_mode()
+                    {
                         self.editor.set_edit_mode(true)?;
                         event_handled = true;
                     }
                 }
                 KeyCode::Esc => {
-                    if self.enable_edit_mode && self.editor.edit_mode() {
+                    if (self.editor.multiline || self.enable_edit_mode) && self.editor.edit_mode() {
                         self.editor.set_edit_mode(false)?;
                         event_handled = true;
                     }
@@ -93,6 +100,14 @@ impl<T: Display> Item for FieldItem<'_, T> {
                 _ => match (self.validator)(self.editor.get_text()) {
                     Ok(t) => {
                         *self.content = t;
+                        self.validator_error = None;
+
+                        if (self.editor.multiline || self.enable_edit_mode)
+                            && self.editor.edit_mode()
+                        {
+                            // Prevent switching to other items when in edit mode
+                            event_handled = true;
+                        }
                     }
                     Err(err) => {
                         // Return true to prevent switching to other items in the list
@@ -115,7 +130,7 @@ impl<T: Display> FieldItem<'_, T> {
     }
 
     /// Whether to use the mode-based editing or not. If false, the editor will accept key input and insert it to the text without entering the edit mode.
-    /// This cannot work with multi-line editing, so it is disabled when multi-line editing is enabled regardless of `enable_edit_mode`.
+    /// Edit mode is always enabled in multi-line editing regardless of `enable_edit_mode`.
     pub fn enable_edit_mode(mut self, enable_edit_mode: bool) -> Self {
         self.enable_edit_mode = enable_edit_mode;
         self
