@@ -6,7 +6,7 @@ pub use render_area::RenderArea;
 
 use crate::{Item, ItemStyle, list::raw_guard::RawGuard};
 use crossterm::{
-    cursor::MoveToColumn,
+    cursor::{MoveToColumn, SetCursorStyle},
     event::{Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
 };
@@ -95,7 +95,7 @@ impl<'a> List<'a> {
 
         loop {
             if let Event::Key(event) = crossterm::event::read()?
-                && self.handle_key(event)
+                && self.handle_key(event)?
             {
                 break;
             }
@@ -120,7 +120,7 @@ impl<'a> List<'a> {
 
         for (index, item) in self.items.iter().enumerate() {
             let item_style = self.resolve_style(index).clone();
-            item.render(&mut self.render_area, item_style);
+            item.render(&mut self.render_area, item_style)?;
             execute!(stdout(), MoveToColumn(0))?;
         }
 
@@ -138,10 +138,11 @@ impl<'a> List<'a> {
 
     /// Handles the keyboard input.
     /// Returns `true` if the list should be closed.
-    fn handle_key(&mut self, event: KeyEvent) -> bool {
+    fn handle_key(&mut self, event: KeyEvent) -> std::io::Result<bool> {
         // Handle Ctrl+C to close the list
         if event.modifiers.contains(KeyModifiers::CONTROL) && event.code == KeyCode::Char('c') {
-            return true;
+            execute!(stdout(), SetCursorStyle::DefaultUserShape)?;
+            return Ok(true);
         }
 
         let mut should_close = false;
@@ -149,9 +150,9 @@ impl<'a> List<'a> {
             && let Some(item) = self.items.get_mut(selected_index)
         {
             let event_handled;
-            (should_close, event_handled) = item.handle_key(event);
+            (should_close, event_handled) = item.handle_key(event)?;
             if event_handled {
-                return should_close;
+                return Ok(should_close);
             }
         }
 
@@ -159,7 +160,7 @@ impl<'a> List<'a> {
             if event.code == *key_code {
                 self.selected_index =
                     Some(self.selected_index.unwrap_or_default().saturating_sub(1));
-                return should_close;
+                return Ok(should_close);
             }
         }
 
@@ -171,11 +172,11 @@ impl<'a> List<'a> {
                         .saturating_add(1)
                         .min(self.items.len() - 1),
                 );
-                return should_close;
+                return Ok(should_close);
             }
         }
 
-        should_close
+        Ok(should_close)
     }
 
     /// Clears the list.

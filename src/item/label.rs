@@ -12,12 +12,13 @@ impl LabelItem {
 }
 
 impl Item for LabelItem {
-    fn render(&self, render_area: &mut RenderArea, item_style: ItemStyle) {
+    fn render(&self, render_area: &mut RenderArea, item_style: ItemStyle) -> std::io::Result<()> {
         println!("{}", item_style.apply(&self.text));
         render_area.advance_by(self.text.lines().count().try_into().unwrap_or_default());
+        Ok(())
     }
 
-    fn handle_key(&mut self, _event: KeyEvent) -> (bool, bool) {
-        (false, false)
+    fn handle_key(&mut self, _event: KeyEvent) -> std::io::Result<(bool, bool)> {
+        Ok((false, false))
     }
 }

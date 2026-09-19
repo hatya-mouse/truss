@@ -19,7 +19,7 @@ impl<'a> CheckItem<'a> {
 }
 
 impl Item for CheckItem<'_> {
-    fn render(&self, render_area: &mut RenderArea, item_style: ItemStyle) {
+    fn render(&self, render_area: &mut RenderArea, item_style: ItemStyle) -> std::io::Result<()> {
         let checkmark = if *self.checked {
             " \u{2713}".green()
         } else {
@@ -27,17 +27,19 @@ impl Item for CheckItem<'_> {
         };
         println!("{}", item_style.apply(&self.label).join(checkmark));
         render_area.advance_by(self.label.lines().count().try_into().unwrap_or_default());
+
+        Ok(())
     }
 
-    fn handle_key(&mut self, event: KeyEvent) -> (bool, bool) {
+    fn handle_key(&mut self, event: KeyEvent) -> std::io::Result<(bool, bool)> {
         match event.code {
             crossterm::event::KeyCode::Char(' ') | KeyCode::Enter => {
                 *self.checked = !*self.checked;
-                return (false, true);
+                return Ok((false, true));
             }
             _ => (),
         }
 
-        (false, false)
+        Ok((false, false))
     }
 }
