@@ -118,10 +118,16 @@ impl<'a> List<'a> {
     fn render(&mut self) -> std::io::Result<()> {
         self.clear()?;
 
-        for (index, item) in self.items.iter().enumerate() {
+        for index in 0..self.items.len() {
             let item_style = self.resolve_style(index).clone();
-            item.render(&mut self.render_area, item_style)?;
-            execute!(stdout(), MoveToColumn(0))?;
+            if let Some(item) = self.items.get_mut(index) {
+                item.render(&mut self.render_area, item_style)?;
+                execute!(stdout(), MoveToColumn(0))?;
+            }
+        }
+
+        for item in self.items.iter() {
+            item.post_render()?;
         }
 
         Ok(())

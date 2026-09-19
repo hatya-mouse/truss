@@ -19,7 +19,11 @@ impl<'a> CheckItem<'a> {
 }
 
 impl Item for CheckItem<'_> {
-    fn render(&self, render_area: &mut RenderArea, item_style: ItemStyle) -> std::io::Result<()> {
+    fn render(
+        &mut self,
+        render_area: &mut RenderArea,
+        item_style: ItemStyle,
+    ) -> std::io::Result<()> {
         let checkmark = if *self.checked {
             " \u{2713}".green()
         } else {
