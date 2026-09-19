@@ -23,7 +23,7 @@ impl Default for ListKeyBinds {
     fn default() -> Self {
         Self {
             up: vec![KeyCode::Up, KeyCode::PageUp],
-            down: vec![KeyCode::Down, KeyCode::PageDown],
+            down: vec![KeyCode::Down, KeyCode::PageDown, KeyCode::Enter],
         }
     }
 }
@@ -121,13 +121,17 @@ impl<'a> List<'a> {
         for index in 0..self.items.len() {
             let item_style = self.resolve_style(index).clone();
             if let Some(item) = self.items.get_mut(index) {
-                item.render(&mut self.render_area, item_style)?;
+                item.render(
+                    &mut self.render_area,
+                    item_style,
+                    self.selected_index == Some(index),
+                )?;
                 execute!(stdout(), MoveToColumn(0))?;
             }
         }
 
-        for item in self.items.iter() {
-            item.post_render()?;
+        for (index, item) in self.items.iter().enumerate() {
+            item.post_render(self.selected_index == Some(index))?;
         }
 
         Ok(())

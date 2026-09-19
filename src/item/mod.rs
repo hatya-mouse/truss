@@ -15,10 +15,12 @@ pub trait Item {
         &mut self,
         render_area: &mut RenderArea,
         item_style: ItemStyle,
+        is_selected: bool,
     ) -> std::io::Result<()>;
 
     /// Performs post-rendering processing for the item.
-    fn post_render(&self) -> std::io::Result<()> {
+    #[allow(unused_variables)]
+    fn post_render(&self, is_selected: bool) -> std::io::Result<()> {
         Ok(())
     }
 

@@ -1,8 +1,5 @@
 use crate::{Item, ItemStyle, RenderArea};
-use crossterm::{
-    event::{KeyCode, KeyEvent},
-    style::Stylize,
-};
+use crossterm::{event::KeyEvent, style::Stylize};
 
 pub struct CheckItem<'a> {
     label: String,
@@ -23,6 +20,7 @@ impl Item for CheckItem<'_> {
         &mut self,
         render_area: &mut RenderArea,
         item_style: ItemStyle,
+        _is_selected: bool,
     ) -> std::io::Result<()> {
         let checkmark = if *self.checked {
             " \u{2713}".green()
@@ -36,14 +34,11 @@ impl Item for CheckItem<'_> {
     }
 
     fn handle_key(&mut self, event: KeyEvent) -> std::io::Result<(bool, bool)> {
-        match event.code {
-            crossterm::event::KeyCode::Char(' ') | KeyCode::Enter => {
-                *self.checked = !*self.checked;
-                return Ok((false, true));
-            }
-            _ => (),
+        if let crossterm::event::KeyCode::Char(' ') = event.code {
+            *self.checked = !*self.checked;
+            Ok((false, true))
+        } else {
+            Ok((false, false))
         }
-
-        Ok((false, false))
     }
 }

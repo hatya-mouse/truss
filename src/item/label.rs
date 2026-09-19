@@ -15,6 +15,7 @@ impl Item for LabelItem {
         &mut self,
         render_area: &mut RenderArea,
         item_style: ItemStyle,
+        _is_selected: bool,
     ) -> std::io::Result<()> {
         println!("{}", item_style.apply(&self.text));
         render_area.advance_by(self.text.lines().count().try_into().unwrap_or_default());

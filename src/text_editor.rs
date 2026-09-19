@@ -7,6 +7,7 @@ use crossterm::{
 use std::{io::stdout, range::Range};
 use unicode_width::UnicodeWidthStr;
 
+/// A low level text editor that allows for editing a string in the terminal.
 pub(super) struct TextEditor<'a> {
     /// The text being edited.
     text: &'a mut String,
@@ -16,15 +17,24 @@ pub(super) struct TextEditor<'a> {
     edit_mode: bool,
     /// The origin of the text editor in the terminal.
     origin: (u16, u16),
+
+    // --- STYLE FLAGS ---
+    /// Whether to allow multi-line editing.
+    pub multiline: bool,
+    /// Whether to use the mode-based editing or not. If false, the editor will accept key input and insert it to the text immediately.
+    /// This cannot work with multi-line editing, so it is disabled when multi-line editing is enabled.
+    pub enable_edit_mode: bool,
 }
 
 impl<'a> TextEditor<'a> {
-    pub(super) fn new(text: &'a mut String) -> Self {
+    pub(super) fn new(text: &'a mut String, multiline: bool, enable_edit_mode: bool) -> Self {
         Self {
             text,
             cursor: Range::default(),
             edit_mode: false,
             origin: (0, 0),
+            multiline,
+            enable_edit_mode,
         }
     }
 
@@ -40,35 +50,46 @@ impl<'a> TextEditor<'a> {
         Ok(())
     }
 
-    pub(super) fn post_render(&self) -> std::io::Result<()> {
-        // Move the cursor to the current position in the text
-        let chars_before_cursor = self.text.get(..self.cursor.start).unwrap_or("");
-        let lines: u16 = chars_before_cursor
-            .chars()
-            .filter(|c| *c == '\n')
-            .count()
-            .try_into()
-            .unwrap_or_default();
-        let last_line_len: u16 = chars_before_cursor
-            .split('\n')
-            .next_back()
-            .and_then(|line| line.width().try_into().ok())
-            .unwrap_or_default();
-        let col = self.origin.0 + last_line_len;
-        let row = self.origin.1 + lines;
-        execute!(stdout(), MoveTo(col, row))
+    /// Move the terminal cursor to the current cursor position in the text.
+    pub(super) fn post_render(&self, is_selected: bool) -> std::io::Result<()> {
+        if is_selected {
+            let chars_before_cursor = self.text.get(..self.cursor.start).unwrap_or("");
+            let lines: u16 = chars_before_cursor
+                .chars()
+                .filter(|c| *c == '\n')
+                .count()
+                .try_into()
+                .unwrap_or_default();
+            let last_line_len: u16 = chars_before_cursor
+                .split('\n')
+                .next_back()
+                .and_then(|line| line.width().try_into().ok())
+                .unwrap_or_default();
+            let col = self.origin.0 + last_line_len;
+            let row = self.origin.1 + lines;
+            execute!(stdout(), MoveTo(col, row))
+        } else {
+            Ok(())
+        }
     }
 
+    /// Handles the keyboard input.
     pub(super) fn handle_key(&mut self, event: KeyEvent) -> std::io::Result<bool> {
-        if self.edit_mode {
+        if self.edit_mode || !self.is_edit_mode_enabled() {
             match event.code {
                 KeyCode::Enter => {
-                    self.enter_char('\n');
-                    Ok(true)
+                    if self.multiline {
+                        self.enter_char('\n');
+                        Ok(true)
+                    } else {
+                        Ok(self.enable_edit_mode)
+                    }
                 }
                 KeyCode::Esc => {
-                    self.edit_mode = false;
-                    execute!(stdout(), SetCursorStyle::DefaultUserShape)?;
+                    if self.is_edit_mode_enabled() {
+                        self.edit_mode = false;
+                        execute!(stdout(), SetCursorStyle::DefaultUserShape)?;
+                    }
                     Ok(true)
                 }
                 KeyCode::Backspace | KeyCode::Delete => {
@@ -130,7 +151,7 @@ impl<'a> TextEditor<'a> {
                     self.enter_char(c);
                     Ok(true)
                 }
-                _ => Ok(true),
+                _ => Ok(self.is_edit_mode_enabled()),
             }
         } else {
             match event.code {
@@ -186,5 +207,11 @@ impl<'a> TextEditor<'a> {
             self.cursor.start -= bytes;
             self.cursor.end = self.cursor.start;
         }
+    }
+
+    /// Returns if the edit mode is available in this editor.
+    #[inline]
+    fn is_edit_mode_enabled(&self) -> bool {
+        self.multiline || self.enable_edit_mode
     }
 }
