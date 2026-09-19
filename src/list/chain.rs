@@ -48,6 +48,10 @@ impl<'a> List<'a> {
 
     /// Adds an field item to the list.
     pub fn field(self, label: impl Into<String>, content: &'a mut String) -> Self {
-        self.add_item(FieldItem::new(label, content))
+        self.add_item(FieldItem::new(
+            label,
+            content,
+            Box::new(|str| Ok(str.to_string())),
+        ))
     }
 }

@@ -8,9 +8,9 @@ use std::{io::stdout, range::Range};
 use unicode_width::UnicodeWidthStr;
 
 /// A low level text editor that allows for editing a string in the terminal.
-pub(super) struct TextEditor<'a> {
+pub(super) struct TextEditor {
     /// The text being edited.
-    text: &'a mut String,
+    text: String,
     /// The current range of the cursor.
     cursor: Range<usize>,
     /// Whether the editor is currently active.
@@ -21,20 +21,16 @@ pub(super) struct TextEditor<'a> {
     // --- STYLE FLAGS ---
     /// Whether to allow multi-line editing.
     pub multiline: bool,
-    /// Whether to use the mode-based editing or not. If false, the editor will accept key input and insert it to the text immediately.
-    /// This cannot work with multi-line editing, so it is disabled when multi-line editing is enabled.
-    pub enable_edit_mode: bool,
 }
 
-impl<'a> TextEditor<'a> {
-    pub(super) fn new(text: &'a mut String, multiline: bool, enable_edit_mode: bool) -> Self {
+impl TextEditor {
+    pub(super) fn new(initial_text: String, multiline: bool) -> Self {
         Self {
-            text,
+            text: initial_text,
             cursor: Range::default(),
             edit_mode: false,
             origin: (0, 0),
             multiline,
-            enable_edit_mode,
         }
     }
 
@@ -52,7 +48,7 @@ impl<'a> TextEditor<'a> {
 
     /// Move the terminal cursor to the current cursor position in the text.
     pub(super) fn post_render(&self, is_selected: bool) -> std::io::Result<()> {
-        if is_selected && (self.edit_mode || !self.is_edit_mode_enabled()) {
+        if is_selected && self.edit_mode {
             execute!(stdout(), SetCursorStyle::BlinkingBar)?;
 
             let chars_before_cursor = self.text.get(..self.cursor.start).unwrap_or("");
@@ -77,22 +73,15 @@ impl<'a> TextEditor<'a> {
 
     /// Handles the keyboard input.
     pub(super) fn handle_key(&mut self, event: KeyEvent) -> std::io::Result<bool> {
-        if self.edit_mode || !self.is_edit_mode_enabled() {
+        if self.edit_mode {
             match event.code {
                 KeyCode::Enter => {
                     if self.multiline {
                         self.enter_char('\n');
                         Ok(true)
                     } else {
-                        Ok(self.enable_edit_mode)
+                        Ok(false)
                     }
-                }
-                KeyCode::Esc => {
-                    if self.is_edit_mode_enabled() {
-                        self.edit_mode = false;
-                        execute!(stdout(), SetCursorStyle::DefaultUserShape)?;
-                    }
-                    Ok(true)
                 }
                 KeyCode::Backspace | KeyCode::Delete => {
                     if self.cursor.start != self.cursor.end {
@@ -153,18 +142,29 @@ impl<'a> TextEditor<'a> {
                     self.enter_char(c);
                     Ok(true)
                 }
-                _ => Ok(self.is_edit_mode_enabled()),
-            }
-        } else {
-            match event.code {
-                KeyCode::Enter | KeyCode::Char(' ') => {
-                    self.edit_mode = true;
-                    execute!(stdout(), SetCursorStyle::BlinkingBar)?;
-                    Ok(true)
-                }
                 _ => Ok(false),
             }
+        } else {
+            Ok(false)
         }
+    }
+
+    pub(super) fn set_edit_mode(&mut self, edit_mode: bool) -> std::io::Result<()> {
+        self.edit_mode = edit_mode;
+        if edit_mode {
+            execute!(stdout(), SetCursorStyle::BlinkingBar)?;
+        } else {
+            execute!(stdout(), SetCursorStyle::DefaultUserShape)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn edit_mode(&self) -> bool {
+        self.edit_mode
+    }
+
+    pub(super) fn get_text(&self) -> &str {
+        &self.text
     }
 
     fn enter_char(&mut self, c: char) {
@@ -209,11 +209,5 @@ impl<'a> TextEditor<'a> {
             self.cursor.start -= bytes;
             self.cursor.end = self.cursor.start;
         }
-    }
-
-    /// Returns if the edit mode is available in this editor.
-    #[inline]
-    fn is_edit_mode_enabled(&self) -> bool {
-        self.multiline || self.enable_edit_mode
     }
 }

@@ -1,29 +1,65 @@
 use crate::{Item, ItemStyle, RenderArea, text_editor::TextEditor};
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyCode, KeyEvent};
+use std::fmt::Display;
 
-pub struct FieldItem<'a> {
+pub type FieldValidator<T> = Box<dyn Fn(&str) -> Result<T, String>>;
+
+pub struct FieldItem<'a, T: Display> {
+    // --- CONTENT ---
+    /// The label of the field.
     label: String,
-    editor: TextEditor<'a>,
+    /// The content being edited in the field.
+    content: &'a mut T,
+    /// A validator that converts and validates the content of the field.
+    validator: FieldValidator<T>,
+
+    // --- RENDERING ---
+    /// The text editor used to edit the content of the field.
+    editor: TextEditor,
+    /// The last validation error message.
+    validator_error: Option<String>,
+
+    // --- STYLE ---
+    /// The item style for the validator error.
+    /// If None, the default item style of the list is used.
+    error_style: Option<ItemStyle>,
+    /// Whether to use the mode-based editing or not. If false, the editor will accept key input and insert it to the text immediately.
+    /// This cannot work with multi-line editing, so it is disabled when multi-line editing is enabled.
+    enable_edit_mode: bool,
 }
 
-impl<'a> FieldItem<'a> {
-    pub fn new(label: impl Into<String>, content: &'a mut String) -> Self {
+impl<'a, T: Display> FieldItem<'a, T> {
+    pub fn new(label: impl Into<String>, content: &'a mut T, validator: FieldValidator<T>) -> Self {
+        let content_string = content.to_string();
         Self {
             label: label.into(),
-            editor: TextEditor::new(content, false, false),
+            content,
+            validator,
+            editor: TextEditor::new(content_string, false),
+            validator_error: None,
+            error_style: None,
+            enable_edit_mode: false,
         }
     }
 }
 
-impl Item for FieldItem<'_> {
+impl<T: Display> Item for FieldItem<'_, T> {
     fn render(
         &mut self,
         render_area: &mut RenderArea,
         item_style: ItemStyle,
         _is_selected: bool,
     ) -> std::io::Result<()> {
-        print!("{}", item_style.apply(&self.label));
-        let label_lines: u16 = self.label.lines().count().try_into().unwrap_or_default();
+        if let Some(validator_error) = self.validator_error.as_ref() {
+            let error_style = self.error_style.as_ref().unwrap_or(&item_style);
+            let error_text = error_style.apply(validator_error);
+            println!("{}", error_text);
+            render_area.advance_by(error_text.lines().try_into().unwrap_or_default());
+        }
+
+        let label_text = item_style.apply(&self.label);
+        print!("{}", label_text);
+        let label_lines: u16 = label_text.lines().try_into().unwrap_or_default();
         render_area.advance_by(label_lines.saturating_sub(1));
 
         self.editor.render(render_area)
@@ -34,21 +70,54 @@ impl Item for FieldItem<'_> {
     }
 
     fn handle_key(&mut self, event: KeyEvent) -> std::io::Result<(bool, bool)> {
-        self.editor
-            .handle_key(event)
-            .map(|event_handled| (false, event_handled))
+        if !self.enable_edit_mode {
+            self.editor.set_edit_mode(true)?;
+        }
+
+        let mut event_handled = self.editor.handle_key(event)?;
+
+        if !event_handled {
+            match event.code {
+                KeyCode::Enter => {
+                    if self.enable_edit_mode && !self.editor.edit_mode() {
+                        self.editor.set_edit_mode(true)?;
+                        event_handled = true;
+                    }
+                }
+                KeyCode::Esc => {
+                    if self.enable_edit_mode && self.editor.edit_mode() {
+                        self.editor.set_edit_mode(false)?;
+                        event_handled = true;
+                    }
+                }
+                _ => match (self.validator)(self.editor.get_text()) {
+                    Ok(t) => {
+                        *self.content = t;
+                    }
+                    Err(err) => {
+                        // Return true to prevent switching to other items in the list
+                        self.validator_error = Some(err);
+                        event_handled = true;
+                    }
+                },
+            }
+        }
+
+        Ok((false, event_handled))
     }
 }
 
-impl FieldItem<'_> {
-    /// Turns on or off multi-line editing for the field item.
+impl<T: Display> FieldItem<'_, T> {
+    /// Turns on or off multi-line editing.
     pub fn multiline(mut self, multiline: bool) -> Self {
         self.editor.multiline = multiline;
         self
     }
 
+    /// Whether to use the mode-based editing or not. If false, the editor will accept key input and insert it to the text without entering the edit mode.
+    /// This cannot work with multi-line editing, so it is disabled when multi-line editing is enabled regardless of `enable_edit_mode`.
     pub fn enable_edit_mode(mut self, enable_edit_mode: bool) -> Self {
-        self.editor.enable_edit_mode = enable_edit_mode;
+        self.enable_edit_mode = enable_edit_mode;
         self
     }
 }
