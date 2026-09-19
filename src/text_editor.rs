@@ -52,7 +52,9 @@ impl<'a> TextEditor<'a> {
 
     /// Move the terminal cursor to the current cursor position in the text.
     pub(super) fn post_render(&self, is_selected: bool) -> std::io::Result<()> {
-        if is_selected {
+        if is_selected && (self.edit_mode || !self.is_edit_mode_enabled()) {
+            execute!(stdout(), SetCursorStyle::BlinkingBar)?;
+
             let chars_before_cursor = self.text.get(..self.cursor.start).unwrap_or("");
             let lines: u16 = chars_before_cursor
                 .chars()

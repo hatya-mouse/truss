@@ -130,6 +130,7 @@ impl<'a> List<'a> {
             }
         }
 
+        execute!(stdout(), SetCursorStyle::DefaultUserShape)?;
         for (index, item) in self.items.iter().enumerate() {
             item.post_render(self.selected_index == Some(index))?;
         }
