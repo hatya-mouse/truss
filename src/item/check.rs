@@ -29,14 +29,15 @@ impl Item for CheckItem<'_> {
         render_area.advance_by(self.label.lines().count().try_into().unwrap_or_default());
     }
 
-    fn handle_key(&mut self, event: KeyEvent) -> bool {
+    fn handle_key(&mut self, event: KeyEvent) -> (bool, bool) {
         match event.code {
             crossterm::event::KeyCode::Char(' ') | KeyCode::Enter => {
                 *self.checked = !*self.checked;
+                return (false, true);
             }
             _ => (),
         }
 
-        false
+        (false, false)
     }
 }

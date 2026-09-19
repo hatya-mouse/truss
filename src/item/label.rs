@@ -17,7 +17,7 @@ impl Item for LabelItem {
         render_area.advance_by(self.text.lines().count().try_into().unwrap_or_default());
     }
 
-    fn handle_key(&mut self, _event: KeyEvent) -> bool {
-        false
+    fn handle_key(&mut self, _event: KeyEvent) -> (bool, bool) {
+        (false, false)
     }
 }

@@ -144,11 +144,22 @@ impl<'a> List<'a> {
             return true;
         }
 
+        let mut should_close = false;
+        if let Some(selected_index) = self.selected_index
+            && let Some(item) = self.items.get_mut(selected_index)
+        {
+            let event_handled;
+            (should_close, event_handled) = item.handle_key(event);
+            if event_handled {
+                return should_close;
+            }
+        }
+
         for key_code in self.key_binds.up.iter() {
             if event.code == *key_code {
                 self.selected_index =
                     Some(self.selected_index.unwrap_or_default().saturating_sub(1));
-                return false;
+                return should_close;
             }
         }
 
@@ -160,17 +171,11 @@ impl<'a> List<'a> {
                         .saturating_add(1)
                         .min(self.items.len() - 1),
                 );
-                return false;
+                return should_close;
             }
         }
 
-        if let Some(selected_index) = self.selected_index
-            && let Some(item) = self.items.get_mut(selected_index)
-        {
-            item.handle_key(event)
-        } else {
-            false
-        }
+        should_close
     }
 
     /// Clears the list.

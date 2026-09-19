@@ -1,6 +1,6 @@
 use crate::{
     List,
-    item::{CheckItem, LabelItem},
+    item::{CheckItem, FieldItem, LabelItem},
     list::ListKeyBinds,
 };
 use crossterm::event::KeyCode;
@@ -44,5 +44,10 @@ impl<'a> List<'a> {
     /// Adds an check item to the list.
     pub fn check(self, label: impl Into<String>, checked: &'a mut bool) -> Self {
         self.add_item(CheckItem::new(label, checked))
+    }
+
+    /// Adds an field item to the list.
+    pub fn field(self, label: impl Into<String>, content: &'a mut String) -> Self {
+        self.add_item(FieldItem::new(label, content))
     }
 }
